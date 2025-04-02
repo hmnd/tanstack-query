@@ -3,7 +3,7 @@ name: pr
 on:
   pull_request:
   push:
-    branches: ['svelte-5-adapter']
+    branches: ['svelte-5-adapter', 'svelte-5-adapter-derived-by']
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
