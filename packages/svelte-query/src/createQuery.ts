@@ -21,7 +21,7 @@ export function createQuery<
   options: Accessor<
     UndefinedInitialDataOptions<TQueryFnData, TError, TData, TQueryKey>
   >,
-  queryClient?: Accessor<QueryClient>,
+  queryClient?: Accessor<QueryClient | undefined>,
 ): CreateQueryResult<TData, TError>
 
 export function createQuery<
@@ -33,7 +33,7 @@ export function createQuery<
   options: Accessor<
     DefinedInitialDataOptions<TQueryFnData, TError, TData, TQueryKey>
   >,
-  queryClient?: Accessor<QueryClient>,
+  queryClient?: Accessor<QueryClient | undefined>,
 ): DefinedCreateQueryResult<TData, TError>
 
 export function createQuery<
@@ -43,7 +43,7 @@ export function createQuery<
   TQueryKey extends QueryKey = QueryKey,
 >(
   options: Accessor<CreateQueryOptions<TQueryFnData, TError, TData, TQueryKey>>,
-  queryClient?: Accessor<QueryClient>,
+  queryClient?: Accessor<QueryClient | undefined>,
 ) {
   return createBaseQuery(options, QueryObserver, queryClient)
 }

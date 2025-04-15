@@ -20,7 +20,7 @@ export function createBaseQuery<
     CreateBaseQueryOptions<TQueryFnData, TError, TData, TQueryData, TQueryKey>
   >,
   Observer: typeof QueryObserver,
-  queryClientOption?: Accessor<QueryClient>,
+  queryClientOption?: Accessor<QueryClient | undefined>,
 ): CreateBaseQueryResult<TData, TError> {
   /** Load query client */
   const queryClient = $derived(queryClientOption?.())
