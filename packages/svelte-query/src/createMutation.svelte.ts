@@ -64,22 +64,13 @@ export function createMutation<
     },
   )
 
-  const subscribe = (
-    observer: MutationObserver<TData, TError, TVariables, TContext>,
-  ) =>
-    observer.subscribe((val) => {
+  $effect.pre(() => {
+    const unsubscribe = observer.subscribe((val) => {
       notifyManager.batchCalls(() => {
         Object.assign(result, val)
       })()
     })
-  let unsubscribe = $state(subscribe(observer))
-
-  $effect.pre(() => {
-    unsubscribe = subscribe(observer)
-  })
-
-  onDestroy(() => {
-    unsubscribe()
+    return unsubscribe
   })
 
   const resultProxy = $derived(
