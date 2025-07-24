@@ -1,4 +1,4 @@
-import { onDestroy } from 'svelte'
+import { onDestroy, untrack } from 'svelte'
 
 import { MutationObserver, notifyManager } from '@tanstack/query-core'
 import { useQueryClient } from './useQueryClient.js'
@@ -8,6 +8,7 @@ import type {
   CreateMutationOptions,
   CreateMutationResult,
 } from './types.js'
+import { watchChanges } from './utils.svelte.js'
 
 import type { DefaultError, QueryClient } from '@tanstack/query-core'
 
@@ -24,12 +25,28 @@ export function createMutation<
   options: Accessor<CreateMutationOptions<TData, TError, TVariables, TContext>>,
   queryClient?: Accessor<QueryClient>,
 ): CreateMutationResult<TData, TError, TVariables, TContext> {
-  const client = useQueryClient(queryClient?.())
+  const client = $derived(useQueryClient(queryClient?.()))
 
-  const observer = new MutationObserver<TData, TError, TVariables, TContext>(
-    client,
-    options(),
+  // svelte-ignore state_referenced_locally - intentional, initial value
+  let observer = $state(
+    // svelte-ignore state_referenced_locally - intentional, initial value
+    new MutationObserver<TData, TError, TVariables, TContext>(
+      client,
+      options(),
+    ),
   )
+
+  watchChanges(
+    () => client,
+    'pre',
+    () => {
+      observer = new MutationObserver(client, options())
+    },
+  )
+
+  $effect.pre(() => {
+    observer.setOptions(options())
+  })
 
   const mutate = <CreateMutateFunction<TData, TError, TVariables, TContext>>((
     variables,
@@ -38,35 +55,50 @@ export function createMutation<
     observer.mutate(variables, mutateOptions).catch(noop)
   })
 
+  let result = $state(observer.getCurrentResult())
+  watchChanges(
+    () => observer,
+    'pre',
+    () => {
+      result = observer.getCurrentResult()
+    },
+  )
+
+  const subscribe = (
+    observer: MutationObserver<TData, TError, TVariables, TContext>,
+  ) =>
+    observer.subscribe((val) => {
+      notifyManager.batchCalls(() => {
+        Object.assign(result, val)
+      })()
+    })
+  let unsubscribe = $state(subscribe(observer))
+
   $effect.pre(() => {
-    observer.setOptions(options())
-  })
-
-  const result = observer.getCurrentResult()
-
-  const unsubscribe = observer.subscribe((val) => {
-    notifyManager.batchCalls(() => {
-      Object.assign(result, val)
-    })()
+    unsubscribe = subscribe(observer)
   })
 
   onDestroy(() => {
     unsubscribe()
   })
 
+  const resultProxy = $derived(
+    new Proxy(result, {
+      get: (_, prop) => {
+        const r = {
+          ...result,
+          mutate,
+          mutateAsync: result.mutate,
+        }
+        if (prop == 'value') return r
+        // @ts-expect-error
+        return r[prop]
+      },
+    }),
+  )
+
   // @ts-expect-error
-  return new Proxy(result, {
-    get: (_, prop) => {
-      const r = {
-        ...result,
-        mutate,
-        mutateAsync: result.mutate,
-      }
-      if (prop == 'value') return r
-      // @ts-expect-error
-      return r[prop]
-    },
-  })
+  return resultProxy
 }
 
 function noop() {}
